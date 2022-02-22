@@ -125,6 +125,25 @@ func TestWaitChildreIsNotImmediate(t *testing.T) {
 	}
 }
 
+func TestShutdownRoutine(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var count int32
+
+	m := New(rootCtx)
+	blockForever := func(ctx Context) error {
+		<-ctx.Done()
+		atomic.AddInt32(&count, 1)
+		return ctx.Err()
+	}
+	for i := 0; i < 10; i++ {
+		m.Spawn(blockForever)
+	}
+	cancel()
+	m.WaitChildren(nil)
+}
+
 func BenchmarkSpawnChildren(b *testing.B) {
 	b.StopTimer()
 	rootCtx, cancel := context.WithCancel(context.Background())
@@ -171,7 +190,7 @@ func BenchmarkNestedSpawn(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// each new root children will spawn at least 10 other nested children
 		// and wait for all of them to finish
-		m.Spawn(newChildren(10))
+		m.Spawn(newChildren(4))
 	}
 	cancel()
 	m.WaitChildren(nil)
