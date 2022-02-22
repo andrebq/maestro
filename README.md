@@ -15,7 +15,7 @@ have completed their clean-up process.
 ```go
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	m := New(ctx)
-	m.Spawn(func(ctx maestro.Context) error { time.Sleep(time.Second / 2); return nil })
+	m.Spawn(func(ctx maestro.Context) error { { <-ctx.Done(); time.Sleep(time.Second / 2); return nil } })
 	m.Spawn(func(ctx maestro.Context) error {
 		ctx.Spawn(func(ctx maestro.Context) error { time.Sleep(time.Second / 2); return nil })
 		// Wait without a timeout
