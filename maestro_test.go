@@ -9,6 +9,23 @@ import (
 	"time"
 )
 
+func TestBasicExample(t *testing.T) {
+	// TODO: move this to a godoc example
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+	m := New(ctx)
+	m.Spawn(func(ctx Context) error { time.Sleep(time.Second / 2); return nil })
+	m.Spawn(func(ctx Context) error {
+		ctx.Spawn(func(ctx Context) error { time.Sleep(time.Second / 2); return nil })
+		// Wait without a timeout
+		return ctx.WaitChildren(nil)
+	})
+	cancel()
+	// Process tree have at least 1 second to perform cleanup
+	if err := m.WaitChildren(TimeoutAfter(time.Second)); err != nil {
+		t.Fatal("Unsafe cleanup", err)
+	}
+}
+
 func TestSpawner(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
