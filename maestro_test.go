@@ -125,6 +125,46 @@ func TestWaitChildreIsNotImmediate(t *testing.T) {
 	}
 }
 
+func TestShutdownRoutine(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var count int32
+
+	m := New(rootCtx)
+	blockForever := func(ctx Context) error {
+		<-ctx.Done()
+		atomic.AddInt32(&count, 1)
+		return ctx.Err()
+	}
+	for i := 0; i < 10; i++ {
+		m.Spawn(blockForever)
+	}
+	cancel()
+	SyncShutdown(m, TimeoutAfter(time.Second))
+}
+
+func TestValue(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	type mykey string
+	m := New(rootCtx)
+	sub := context.WithValue(m, mykey("key"), "value")
+	if m.Value(mykey("key")) == sub.Value(mykey("key")) {
+		t.Fatal("There is something really wrong with contexts")
+	} else if sub.Value(mykey("key")).(string) != "value" {
+		t.Fatal("this should never happen")
+	}
+
+	if parent, ok := Closest(sub); !ok {
+		t.Fatal("Closest should return the closest maestro context for a given non-maestro context")
+	} else if parent != m {
+		t.Fatalf("The closest parent should have been %v got %v", m, parent)
+	}
+
+}
+
 func BenchmarkSpawnChildren(b *testing.B) {
 	b.StopTimer()
 	rootCtx, cancel := context.WithCancel(context.Background())
@@ -171,7 +211,7 @@ func BenchmarkNestedSpawn(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		// each new root children will spawn at least 10 other nested children
 		// and wait for all of them to finish
-		m.Spawn(newChildren(10))
+		m.Spawn(newChildren(4))
 	}
 	cancel()
 	m.WaitChildren(nil)
