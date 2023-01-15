@@ -141,7 +141,28 @@ func TestShutdownRoutine(t *testing.T) {
 		m.Spawn(blockForever)
 	}
 	cancel()
-	m.WaitChildren(nil)
+	SyncShutdown(m, TimeoutAfter(time.Second))
+}
+
+func TestValue(t *testing.T) {
+	rootCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	type mykey string
+	m := New(rootCtx)
+	sub := context.WithValue(m, mykey("key"), "value")
+	if m.Value(mykey("key")) == sub.Value(mykey("key")) {
+		t.Fatal("There is something really wrong with contexts")
+	} else if sub.Value(mykey("key")).(string) != "value" {
+		t.Fatal("this should never happen")
+	}
+
+	if parent, ok := Closest(sub); !ok {
+		t.Fatal("Closest should return the closest maestro context for a given non-maestro context")
+	} else if parent != m {
+		t.Fatalf("The closest parent should have been %v got %v", m, parent)
+	}
+
 }
 
 func BenchmarkSpawnChildren(b *testing.B) {
