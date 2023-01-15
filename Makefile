@@ -1,4 +1,4 @@
-.PHONY: test benchmar tidy watch default
+.PHONY: test benchmark tidy watch default
 
 
 default: test
